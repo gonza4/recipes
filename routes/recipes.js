@@ -5,6 +5,6 @@ var recipesController = require('../controllers/recipes');
 
 var api = express.Router();
 
-api.post('/recipes', recipesController.getRecipes);
+api.get('/recipes', recipesController.getRecipes);
 
 module.exports = api;
