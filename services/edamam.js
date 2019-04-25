@@ -39,7 +39,7 @@ exports.getRecipes = function(params, callback) {
 			if('[' === body){
 				callback("Parametros incorrectos");
 			} else{
-				callback(null, response.body);
+				callback(null, body);
 			}
 	});
 };
