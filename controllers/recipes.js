@@ -28,11 +28,7 @@ function getRecipes(req, res) {
 						if (err) {
 							res.status(404).send({err: err});
 						} else {
-							var datas = [];
-							for (var i = 0; i < result.length; i++) {
-								datas[i] = result[i].uri;
-							}
-							res.status(200).send(datas);
+							res.status(200).send(result);
 						}
 					});	
 				} else {
