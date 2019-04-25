@@ -30,7 +30,7 @@ function getRecipes(req, res) {
 						} else {
 							var datas = [];
 							for (var i = 0; i < result.length; i++) {
-								datas[i] = result[i].calories;
+								datas[i] = result[i].uri;
 							}
 							res.status(200).send(datas);
 						}
@@ -99,6 +99,25 @@ function sort_by(field, reverse, primer, count){
 	  } 
  }
 
+function getRecipeById(req, res) {
+	var params = req.query;
+
+	edamam.getRecipeById(params, (err, body) => {
+		if(err){
+			res.status(409).send({error: err});
+		} else{
+			body = JSON.parse(body);
+			let recipe = body;
+			
+			if(undefined === recipe) {
+				res.status(404).send({message: "No se encontraron recetas"});
+			}else{
+				res.status(200).send(recipe[0]);
+			}
+		}
+	});
+}
 module.exports = {
-	getRecipes
+	getRecipes,
+	getRecipeById
 };
