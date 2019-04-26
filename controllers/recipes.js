@@ -13,6 +13,7 @@ function getRecipes(req, res) {
 			let recipes = body.hits;
 			let data = [];
 			let orderType = params.orderType;
+			let from = params.from;
 
 			if(undefined === recipes) {
 				res.status(404).send({message: "No se encontraron recetas"});
@@ -23,8 +24,8 @@ function getRecipes(req, res) {
 					for (var i = 0; i < recipes.length; i++) {
 						data[i] = recipes[i].recipe;
 					}
-
-					orderResults(data, orderType, order, (err, result) => {
+					
+					orderResults(data, orderType, order, from, (err, result) => {
 						if (err) {
 							res.status(404).send({err: err});
 						} else {
@@ -33,17 +34,23 @@ function getRecipes(req, res) {
 					});	
 				} else {
 					for (var i = 0; i < recipes.length; i++) {
-						data[i] = recipes[i].recipe;
+						data[i] = recipes[i].recipe.yield;
 					}
 
-					res.status(200).send(data);
+					paginate(data, from, (err, data) => {
+						if(err) {
+							res.status(401).send(err);
+						} else{
+							res.status(200).send(data);
+						}
+					});
 				}
 			}
 		}
 	});
 }
 
-function orderResults(data, orderType, order, callback) {
+function orderResults(data, orderType, order, from, callback) {
 	switch (orderType) {
 		case 'ingredientes':
 			if ('menor' === order) {
@@ -52,7 +59,13 @@ function orderResults(data, orderType, order, callback) {
 				data.sort(sort_by('ingredients', true, parseInt, true));
 			}
 			
-			callback(null, data);
+			paginate(data, from, (err, data) => {
+				if(err) {
+					callback(err);
+				} else{
+					callback(null, data);
+				}
+			});
 			break;
 		case 'porciones':
 			if ('menor' === order) {
@@ -61,7 +74,13 @@ function orderResults(data, orderType, order, callback) {
 				data.sort(sort_by('yield', true, parseInt));
 			}
 			
-			callback(null, data);
+			paginate(data, from, (err, data) => {
+				if(err) {
+					callback(err);
+				} else{
+					callback(null, data);
+				}
+			});
 			break;
 		case 'calorias':
 			if ('menor' === order) {
@@ -70,7 +89,13 @@ function orderResults(data, orderType, order, callback) {
 				data.sort(sort_by('calories', true, parseFloat));
 			}
 			
-			callback(null, data);
+			paginate(data, from, (err, data) => {
+				if(err) {
+					callback(err);
+				} else{
+					callback(null, data);
+				}
+			});
 			break;
 		default:
 			callback(null, data);
@@ -113,6 +138,19 @@ function getRecipeById(req, res) {
 		}
 	});
 }
+
+function paginate(data, from, callback) {
+	if (undefined === from) {
+		from = 0;
+	} else {
+		from = parseInt(from) + (20 * parseInt(from));
+	}
+	let to = from + 20;
+	let paginateData = data.slice(from, to);
+
+	callback(null, paginateData);
+}
+
 module.exports = {
 	getRecipes,
 	getRecipeById

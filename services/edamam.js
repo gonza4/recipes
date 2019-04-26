@@ -7,23 +7,12 @@ exports.getRecipes = function(params, callback) {
 		return callback("Falta el parametro q");
 	}
 
-	var from;
-	var to;
-
-	if (undefined === params.from) {
-		from = 0;
-	} else {
-		from = parseInt(params.from) + (20 * parseInt(params.from));
-		to = from + 20;
-	}
-
 	const paramsObject = 
 		{ 
 			app_id: "f5cd31de", 
 			app_key: "5af0d717e2f9c1cf26cb93b4c2452375", 
 			q: params.q,
-			from: from,
-			to: from + 20
+			to: 100
 	};
 	
 	request.get({
@@ -48,18 +37,13 @@ exports.getRecipeById = function(params, callback) {
 	if (undefined === params.r) {
 		return callback("Falta el parametro r");
 	}
-	// var arraySplit = [];
-	// arraySplit = params.r.split("#");
-
-	// let prefixUri = 'http%3A%2F%2Fwww.edamam.com%2Fontologies%2Fedamam.owl%23';
-	// let postfixUri = arraySplit[1];
-	// var r = prefixUri . postfixUri;
 
 	const paramsObject = 
 		{ 
 			app_id: "f5cd31de", 
 			app_key: "5af0d717e2f9c1cf26cb93b4c2452375", 
-			r: params.r
+			r: params.r,
+			to: 100
 	};
 	
 	request.get({
