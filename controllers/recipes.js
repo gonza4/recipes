@@ -34,7 +34,7 @@ function getRecipes(req, res) {
 					});	
 				} else {
 					for (var i = 0; i < recipes.length; i++) {
-						data[i] = recipes[i].recipe.yield;
+						data[i] = recipes[i].recipe;
 					}
 
 					paginate(data, from, (err, data) => {
@@ -140,11 +140,16 @@ function getRecipeById(req, res) {
 }
 
 function paginate(data, from, callback) {
-	if (undefined === from) {
+	if (undefined === from || 0 === parseInt(from)) {
 		from = 0;
 	} else {
-		from = parseInt(from) + (20 * parseInt(from));
+		from = parseInt(from - 1) + (20 * parseInt(from - 1));
 	}
+	
+	if (from < 1) {
+		from = from * -1;
+	}
+
 	let to = from + 20;
 	let paginateData = data.slice(from, to);
 
