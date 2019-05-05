@@ -1,7 +1,5 @@
 'use strict'
 
-var edamam = require('../services/edamam');
-
 function getRecipes(req, res) {
 	var params = req.query;
 
