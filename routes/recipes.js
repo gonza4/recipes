@@ -7,7 +7,7 @@ var utilController = require('../util/fillDdbb');
 var api = express.Router();
 
 api.get('/recipes', recipesController.getRecipes);
-api.get('/recipe/byId', recipesController.getRecipeById);
+api.get('/recipe/byId/:id', recipesController.getRecipeById);
 api.post('/fill/ddbb', utilController.fillDdbb);
 
 module.exports = api;
