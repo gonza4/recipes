@@ -15,23 +15,26 @@ async function getRecipes(params, callback) {
 		.run(
 			`MATCH (re:Recipe)-[r:${relation}]->(dl:${category} {name:'${value}' })
 			 RETURN DISTINCT re 
-			 LIMIT 300`
+			 LIMIT 100`
 		)
-		.then(function (result) {
+		.then(async function (result) {
 			session.close();
 			let total = [];
 
 			for (let key in result.records) {
 				let recipeId = result.records[key]._fields[0].identity.low;
 
-				buildRecipeArray(recipeId, (err, recipe) => {
-					if (err) {
-						callback(err);
-					} else {
-						total.push(recipe[0]);
-
-					}
-				});
+				try {
+					await buildRecipeArray(recipeId, (err, recipe) => {
+						if (err) {
+							callback(err);
+						} else {
+							total.push(recipe[0]);
+						}
+					});
+				} catch (err) {
+					console.log(err);
+				}
 			}
 
 			setTimeout(() => {
@@ -42,7 +45,7 @@ async function getRecipes(params, callback) {
 						callback(null, result);
 					}
 				});
-			}, 200)
+			}, 100)
 		})
 		.catch(function (e) {
 			callback(e);
@@ -118,17 +121,17 @@ async function getCategories(callback) {
 
 			for (const key in result.records) {
 				values.push(
-						result.records[key]._fields[1]
+					result.records[key]._fields[1]
 				);
 			}
 
 			totalDiet.push(
 				{
 					'DietLabels':
-						{
-							'relation': relation,
-							'values': values
-						}
+					{
+						'relation': relation,
+						'values': values
+					}
 				}
 			);
 			session
@@ -136,7 +139,7 @@ async function getCategories(callback) {
 					`MATCH ()-[r:HEALTH_LABELS]->(o:HealthLabels)
 					RETURN DISTINCT type(r), o.name`
 				)
-				.then(function(result) {
+				.then(function (result) {
 					session.close();
 					let totalHealth = [];
 					let values = [];
@@ -151,19 +154,53 @@ async function getCategories(callback) {
 					totalHealth.push(
 						{
 							'HealthLabels':
-								{
-									'relation': relation,
-									'values': values
-								}
+							{
+								'relation': relation,
+								'values': values
+							}
 						}
 					);
 					totalDiet.push(...totalHealth)
 
 					callback(null, totalDiet);
 				})
-				.catch(function(e) {
+				.catch(function (e) {
 					callback(e);
 				});
+		})
+		.catch(function (e) {
+			callback(e);
+		});
+}
+
+async function getSearch(text, callback) {
+	await session
+		.run(
+			`CALL db.index.fulltext.queryNodes("labelAndName", "${text}") 
+			 YIELD node, score 
+			 RETURN node, score 
+			 LIMIT 20`
+		)
+		.then(async function (result) {
+			session.close();
+			let total = [];
+
+			for (let key in result.records) {
+				let recipeId = result.records[key]._fields[0].identity.low;
+				try {
+					await buildRecipeArray(recipeId, (err, recipe) => {
+						if (err) {
+							callback(err);
+						} else {
+							total.push(recipe[0]);
+						}
+					});
+				} catch (err) {
+					console.log(err)
+				}
+			}
+
+			callback(null, total);
 		})
 		.catch(function (e) {
 			callback(e);
@@ -173,5 +210,6 @@ async function getCategories(callback) {
 module.exports = {
 	getRecipes,
 	buildRecipeArray,
-	getCategories
+	getCategories,
+	getSearch
 }

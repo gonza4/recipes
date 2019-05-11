@@ -8,6 +8,7 @@ async function getRecipes(req, res) {
 	await recipeRepo.getRecipes(params, (err, recipes) => {
 		if(err){
 			res.status(409).send({error: err});
+			return;
 		} else{
 			if(undefined === recipes) {
 				res.status(404).send({message: "No se encontraron recetas"});
@@ -48,8 +49,25 @@ async function getCategories(req, res) {
 	});
 }
 
+async function getSearch(req, res) {
+	let text = req.params.text;
+	await recipeRepo.getSearch(text, (err, recipes) => {
+		if(err){
+			res.status(409).send({error: err});
+			return;
+		} else{
+			if(undefined === recipes) {
+				res.status(404).send({message: err});
+			}else{
+				res.status(200).send(recipes);
+			}
+		}
+	});
+}
+
 module.exports = {
 	getRecipes,
 	getRecipeById,
-	getCategories
+	getCategories,
+	getSearch
 };
