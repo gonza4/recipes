@@ -12,18 +12,18 @@ async function getRecipes(params, callback) {
 	let from = params.from;
 
 	await session
-    .run(
+		.run(
 			`MATCH (re:Recipe)-[r:${relation}]->(dl:${category} {name:'${value}' })
 			 RETURN DISTINCT re 
 			 LIMIT 300`
 		)
-    .then(function(result) {
-      session.close();
-      let total = [];
+		.then(function (result) {
+			session.close();
+			let total = [];
 
 			for (let key in result.records) {
 				let recipeId = result.records[key]._fields[0].identity.low;
-				
+
 				buildRecipeArray(recipeId, (err, recipe) => {
 					if (err) {
 						callback(err);
@@ -33,20 +33,20 @@ async function getRecipes(params, callback) {
 					}
 				});
 			}
-			
+
 			setTimeout(() => {
-					recipeController.orderResults(total, orderType, order, from, (err, result) => {
-						if (err) {
-							callback({err: err});
-						} else {
-							callback(null, result);
-						}
-					});
+				recipeController.orderResults(total, orderType, order, from, (err, result) => {
+					if (err) {
+						callback({ err: err });
+					} else {
+						callback(null, result);
+					}
+				});
 			}, 200)
-    })
-    .catch(function(e) {
-      callback(e);
-    });
+		})
+		.catch(function (e) {
+			callback(e);
+		});
 }
 
 async function buildRecipeArray(recipeId, callback) {
@@ -56,7 +56,7 @@ async function buildRecipeArray(recipeId, callback) {
 			 WHERE id(re) = ${recipeId}
 			 RETURN o, re`,
 		)
-		.then(function(result) {
+		.then(function (result) {
 			session.close();
 			let dietLabels = [];
 			let healthLabels = [];
@@ -68,23 +68,23 @@ async function buildRecipeArray(recipeId, callback) {
 			for (let key in result.records) {
 				let label = result.records[key]._fields[0].labels;
 				let properties = result.records[key]._fields[0].properties;
-				
+
 				switch (label.join()) {
 					case 'DietLabels':
-							dietLabels.push(properties.name);			
+						dietLabels.push(properties.name);
 						break;
 					case 'HealthLabels':
-							healthLabels.push(properties.name);
+						healthLabels.push(properties.name);
 						break;
 					case 'IngredientLines':
-							ingredientLines.push(properties.name);
+						ingredientLines.push(properties.name);
 						break;
 					case 'TotalNutrients':
-							totalNutrientsFirst.push({
-									label: properties.name,
-									quantity: properties.quantity,
-									unit: properties.unit
-							});
+						totalNutrientsFirst.push({
+							label: properties.name,
+							quantity: properties.quantity,
+							unit: properties.unit
+						});
 						break;
 				}
 			}
@@ -96,15 +96,82 @@ async function buildRecipeArray(recipeId, callback) {
 				ingredientLines: ingredientLines,
 				totalNutrients: totalNutrientsFirst
 			})
-			
+
 			callback(null, total);
 		})
-		.catch(function(err) {
+		.catch(function (err) {
 			callback(err);
+		});
+}
+
+async function getCategories(callback) {
+	await session
+		.run(
+			`MATCH ()-[r:DIET_LABELS]->(o:DietLabels)
+			 RETURN DISTINCT type(r), o.name`
+		)
+		.then(function (result) {
+			session.close();
+			let totalDiet = [];
+			let values = [];
+			let relation = result.records[0]._fields[0];
+
+			for (const key in result.records) {
+				values.push(
+						result.records[key]._fields[1]
+				);
+			}
+
+			totalDiet.push(
+				{
+					'DietLabels':
+						{
+							'relation': relation,
+							'values': values
+						}
+				}
+			);
+			session
+				.run(
+					`MATCH ()-[r:HEALTH_LABELS]->(o:HealthLabels)
+					RETURN DISTINCT type(r), o.name`
+				)
+				.then(function(result) {
+					session.close();
+					let totalHealth = [];
+					let values = [];
+					let relation = result.records[0]._fields[0];
+
+					for (const key in result.records) {
+						values.push(
+							result.records[key]._fields[1],
+						);
+					}
+
+					totalHealth.push(
+						{
+							'HealthLabels':
+								{
+									'relation': relation,
+									'values': values
+								}
+						}
+					);
+					totalDiet.push(...totalHealth)
+
+					callback(null, totalDiet);
+				})
+				.catch(function(e) {
+					callback(e);
+				});
+		})
+		.catch(function (e) {
+			callback(e);
 		});
 }
 
 module.exports = {
 	getRecipes,
-	buildRecipeArray
+	buildRecipeArray,
+	getCategories
 }

@@ -34,7 +34,22 @@ async function getRecipeById(req, res) {
 	});
 }
 
+async function getCategories(req, res) {
+	await recipeRepo.getCategories((err, categories) => {
+		if(err){
+			res.status(409).send({error: err});
+		} else{
+			if(undefined === categories) {
+				res.status(404).send({message: err});
+			}else{
+				res.status(200).send(categories);
+			}
+		}
+	});
+}
+
 module.exports = {
 	getRecipes,
-	getRecipeById
+	getRecipeById,
+	getCategories
 };
