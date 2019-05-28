@@ -5,64 +5,58 @@ var recipeRepo = require("../repositories/recipes");
 async function getRecipes(req, res) {
   let params = req.query;
 
-  await recipeRepo.getRecipes(params, (err, recipes) => {
-    if (err) {
-      res.status(409).send({ error: err });
-      return;
-    } else {
-      if (undefined === recipes) {
-        res.status(404).send({ message: "No se encontraron recetas" });
-      } else {
-        res.status(200).send(recipes);
-      }
-    }
-  });
+  await recipeRepo
+    .getRecipes(params)
+    .then(recipes => {
+      if (undefined === recipes)
+        res.status(404).send({ message: "No se encontro la receta" });
+      res.status(200).send(recipes);
+    })
+    .catch(err => {
+      res.status(404).send({ err: err });
+    });
 }
 
 async function getRecipeById(req, res) {
   var recipeId = req.params.id;
 
-  await recipeRepo.buildRecipeArray(recipeId, (err, recipe) => {
-    if (err) {
-      res.status(409).send({ error: err });
-    } else {
-      if (undefined === recipe) {
+  await recipeRepo
+    .buildRecipeArray(recipeId)
+    .then(recipe => {
+      if (undefined === recipe)
         res.status(404).send({ message: "No se encontro la receta" });
-      } else {
-        res.status(200).send(recipe);
-      }
-    }
-  });
+      res.status(200).send(recipe);
+    })
+    .catch(err => {
+      res.status(404).send({ err: err });
+    });
 }
 
 async function getCategories(req, res) {
-  await recipeRepo.getCategories((err, categories) => {
-    if (err) {
-      res.status(409).send({ error: err });
-    } else {
-      if (undefined === categories) {
-        res.status(404).send({ message: err });
-      } else {
-        res.status(200).send(categories);
-      }
-    }
-  });
+  await recipeRepo
+    .getCategories()
+    .then(recipe => {
+      res.status(200).send(recipe);
+    })
+    .catch(err => {
+      res.status(404).send({ err: err });
+    });
 }
 
 async function getSearch(req, res) {
   let params = req.params;
-  await recipeRepo.getSearch(params, (err, recipes) => {
-    if (err) {
-      res.status(409).send({ error: err });
-      return;
-    } else {
-      if (undefined === recipes) {
-        res.status(404).send({ message: err });
-      } else {
-        res.status(200).send(recipes);
-      }
-    }
-  });
+  let from = req.query.from;
+
+  await recipeRepo
+    .getSearch(params, from)
+    .then(recipes => {
+      if (undefined === recipes)
+        res.status(404).send({ message: "No se encontraron recetas" });
+      res.status(200).send(recipes);
+    })
+    .catch(err => {
+      res.status(404).send({ err: err });
+    });
 }
 
 async function verifyImage(req, res) {

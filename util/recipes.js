@@ -1,6 +1,6 @@
 "use strict";
 
-function orderResults(data, orderType, order, from, callback) {
+async function orderResults(data, orderType, order, from) {
   switch (orderType) {
     case "ingredientes":
       if ("menor" === order) {
@@ -9,13 +9,7 @@ function orderResults(data, orderType, order, from, callback) {
         data.sort(sort_by("ingredientLines", true, parseInt, true));
       }
 
-      paginate(data, from, (err, data) => {
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, data);
-        }
-      });
+      return paginate(data, from);
       break;
     case "porciones":
       if ("menor" === order) {
@@ -24,13 +18,7 @@ function orderResults(data, orderType, order, from, callback) {
         data.sort(sort_by("yield", true, parseInt));
       }
 
-      paginate(data, from, (err, data) => {
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, data);
-        }
-      });
+      return paginate(data, from);
       break;
     case "calorias":
       if ("menor" === order) {
@@ -39,22 +27,10 @@ function orderResults(data, orderType, order, from, callback) {
         data.sort(sort_by("calories", true, parseFloat));
       }
 
-      paginate(data, from, (err, data) => {
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, data);
-        }
-      });
+      return paginate(data, from);
       break;
     default:
-      paginate(data, from, (err, data) => {
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, data);
-        }
-      });
+      return paginate(data, from);
       break;
   }
 }
@@ -79,8 +55,7 @@ function sort_by(field, reverse, primer, count) {
   };
 }
 
-function paginate(data, from, callback) {
-  console.log(data.length);
+function paginate(data, from) {
   if (undefined === from || 0 === parseInt(from)) {
     from = 0;
   } else {
@@ -94,7 +69,7 @@ function paginate(data, from, callback) {
   let to = from + 20;
   let paginateData = data.slice(from, to);
 
-  callback(null, paginateData);
+  return paginateData;
 }
 
 module.exports = {

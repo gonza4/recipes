@@ -4,7 +4,7 @@ var session = require("../datasource/index");
 var recipeController = require("../util/recipes");
 var urlExists = require("url-exists-deep");
 
-async function getRecipes(params, callback) {
+async function getRecipes(params) {
   let relation = params.relation;
   let category = params.category;
   let value = params.value;
@@ -18,57 +18,45 @@ async function getRecipes(params, callback) {
 			 RETURN DISTINCT re 
 			 LIMIT 300`
     )
-    .then(async function(result) {
+    .then(async result => {
       session.close();
       let total = [];
       let totalPages = Math.floor(result.records.length / 20);
       totalPages = totalPages < 1 ? 1 : totalPages;
 
-      for (let key in result.records) {
-        let recipeId = result.records[key]._fields[0].identity.low;
+      result.records.map(async value => {
+        let recipeId = value._fields[0].identity.low;
 
-        try {
-          await buildRecipeArray(recipeId, (err, recipe) => {
-            if (err) {
-              callback(err);
-            } else {
-              total.push({ ...recipe[0], totalPages: totalPages });
-            }
+        await buildRecipeArray(recipeId)
+          .then(value => {
+            total.push({ ...value, totalPages: totalPages });
+          })
+          .catch(err => {
+            throw new Error(err);
           });
-        } catch (err) {
-          console.log(err);
-        }
-      }
-
-      setTimeout(() => {
-        recipeController.orderResults(
-          total,
-          orderType,
-          order,
-          from,
-          (err, result) => {
-            if (err) {
-              callback({ err: err });
-            } else {
-              callback(null, result);
-            }
-          }
-        );
-      }, 100);
+      });
+      await recipeController
+        .orderResults(total, orderType, order, from)
+        .then(value => {
+          return value;
+        })
+        .catch(err => {
+          throw new Error(err);
+        });
     })
-    .catch(function(e) {
-      callback(e);
+    .catch(e => {
+      throw new Error(e);
     });
 }
 
-async function buildRecipeArray(recipeId, callback) {
+async function buildRecipeArray(recipeId) {
   await session
     .run(
       `MATCH (re:Recipe)-[r]-(o)
 			 WHERE id(re) = ${recipeId}
 			 RETURN o, re`
     )
-    .then(function(result) {
+    .then(result => {
       session.close();
       let dietLabels = [];
       let healthLabels = [];
@@ -77,9 +65,9 @@ async function buildRecipeArray(recipeId, callback) {
       let total = [];
       let recipe = result.records[0]._fields[1].properties;
 
-      for (let key in result.records) {
-        let label = result.records[key]._fields[0].labels;
-        let properties = result.records[key]._fields[0].properties;
+      result.records.map(value => {
+        let label = value._fields[0].labels;
+        let properties = value._fields[0].properties;
 
         switch (label.join()) {
           case "DietLabels":
@@ -99,7 +87,7 @@ async function buildRecipeArray(recipeId, callback) {
             });
             break;
         }
-      }
+      });
 
       total.push({
         id: recipeId,
@@ -109,29 +97,28 @@ async function buildRecipeArray(recipeId, callback) {
         ingredientLines: ingredientLines,
         totalNutrients: totalNutrientsFirst
       });
-
-      callback(null, total);
+      return total;
     })
-    .catch(function(err) {
-      callback(err);
+    .catch(err => {
+      throw new Error(err);
     });
 }
 
-async function getCategories(callback) {
+async function getCategories() {
   await session
     .run(
       `MATCH ()-[r:DIET_LABELS]->(o:DietLabels)
 			 RETURN DISTINCT type(r), o.name`
     )
-    .then(function(result) {
+    .then(async result => {
       session.close();
       let totalDiet = [];
       let values = [];
       let relation = result.records[0]._fields[0];
 
-      for (const key in result.records) {
-        values.push(result.records[key]._fields[1]);
-      }
+      result.records.map(value => {
+        values.push(value._fields[1]);
+      });
 
       totalDiet.push({
         DietLabels: {
@@ -139,20 +126,20 @@ async function getCategories(callback) {
           values: values
         }
       });
-      session
+      await session
         .run(
           `MATCH ()-[r:HEALTH_LABELS]->(o:HealthLabels)
 					RETURN DISTINCT type(r), o.name`
         )
-        .then(function(result) {
+        .then(async result => {
           session.close();
           let totalHealth = [];
           let values = [];
           let relation = result.records[0]._fields[0];
 
-          for (const key in result.records) {
-            values.push(result.records[key]._fields[1]);
-          }
+          result.records.map(value => {
+            values.push(value._fields[1]);
+          });
 
           totalHealth.push({
             HealthLabels: {
@@ -162,62 +149,57 @@ async function getCategories(callback) {
           });
           totalDiet.push(...totalHealth);
 
-          callback(null, totalDiet);
+          return totalDiet;
         })
-        .catch(function(e) {
-          callback(e);
+        .catch(err => {
+          throw new Error(err);
         });
     })
-    .catch(function(e) {
-      callback(e);
+    .catch(err => {
+      throw new Error(err);
     });
 }
 
-async function getSearch(params, callback) {
+async function getSearch(params, from) {
   let text = params.text;
-  let from = params.from;
+  text = replace(text);
+
+  let finalText = buildSearchText(text);
   await session
     .run(
-      `CALL db.index.fulltext.queryNodes("labelAndName", "${text}") 
+      `CALL db.index.fulltext.queryNodes("labelAndName", "${finalText}~2") 
 			 YIELD node, score 
        RETURN node, score
-       LIMIT 300`
+       LIMIT 10`
     )
-    .then(async function(result) {
+    .then(async result => {
       session.close();
       let total = [];
       let totalPages = Math.floor(result.records.length / 20);
       totalPages = totalPages < 1 ? 1 : totalPages;
 
-      for (let key in result.records) {
-        let recipeId = result.records[key]._fields[0].identity.low;
-        try {
-          await buildRecipeArray(recipeId, (err, recipe) => {
-            if (err) {
-              callback(err);
-            } else {
-              total.push({ ...recipe[0], totalPages: totalPages });
-            }
-          }).catch(err => {
-            console.log(err);
+      result.records.map(async recipe => {
+        let recipeId = recipe._fields[0].identity.low;
+        await buildRecipeArray(recipeId)
+          .then(value => {
+            total.push({ ...value, totalPages: totalPages });
+          })
+          .catch(err => {
+            throw new Error(err);
           });
-        } catch (err) {
-          console.log(err);
-        }
-      }
+      });
 
-      setTimeout(() => {
-        recipeController.paginate(total, from, (err, total) => {
-          if (err) {
-            callback(err);
-          } else {
-            callback(null, total);
-          }
+      await recipeController
+        .orderResults(total, null, null, from)
+        .then(result => {
+          return result;
+        })
+        .catch(err => {
+          throw new Error(err);
         });
-      }, 100);
     })
-    .catch(function(e) {
-      callback(e);
+    .catch(err => {
+      throw new Error(err);
     });
 }
 
@@ -229,20 +211,20 @@ async function verifyImage() {
     order by id(re) DESC
     LIMIT 4500`
     )
-    .then(function(result) {
+    .then(result => {
       session.close();
 
-      for (let key in result.records) {
-        let recipeId = result.records[key]._fields[0].identity.low;
-        let recipe = result.records[key]._fields[0].properties;
+      result.records.map(async value => {
+        let recipeId = value._fields[0].identity.low;
+        let recipe = value._fields[0].properties;
 
         urlExists(recipe.image)
-          .then(function(response) {
+          .then(async response => {
             if (response) {
               console.log("entra 1");
             } else {
               console.log("entra 2");
-              session.run(
+              await session.run(
                 `MATCH (re:Recipe)
                   WHERE id(re) = ${recipeId}
                   SET re.image = 'http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg'
@@ -251,23 +233,53 @@ async function verifyImage() {
               // http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg
             }
           })
-          .catch(err => {
+          .catch(async err => {
             console.log("entra 3");
-            session.run(
+            await session.run(
               `MATCH (re:Recipe)
                 WHERE id(re) = ${recipeId}
                 SET re.image = 'http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg'
                 RETURN re.image`
             );
             console.log(err);
-            return err;
+            throw new Error(err);
           });
-      }
+      });
     })
     .catch(function(e) {
       //   callback(e);
       console.log(e);
     });
+}
+
+function replace(text) {
+  return text
+    .replace(" de ", "")
+    .replace(" con ", "")
+    .replace(" la ", "")
+    .replace(" las ", "")
+    .replace(" en ", "")
+    .replace(" un ", "")
+    .replace(" una ", "")
+    .replace(" unos ", "")
+    .replace(" unas ", "")
+    .replace(" al ", "")
+    .replace(" el ", "")
+    .replace(" lo ", "")
+    .replace(" los ", "")
+    .replace(" a ", "")
+    .replace(" del ", "");
+}
+
+function buildSearchText(text) {
+  let arrayText = text.split(" ");
+  return arrayText
+    .map(element => {
+      if ("" !== element) {
+        return (finalText += " " + element + "*");
+      }
+    })
+    .trim();
 }
 
 module.exports = {
