@@ -4,7 +4,6 @@ var recipeRepo = require("../repositories/recipes");
 
 async function getRecipes(req, res) {
   let params = req.query;
-
   await recipeRepo
     .getRecipes(params)
     .then(recipes => {
@@ -63,10 +62,25 @@ async function verifyImage(req, res) {
   await recipeRepo.verifyImage();
 }
 
+async function createRecipe(req, res) {
+  let body = req.body;
+  await recipeRepo
+    .createRecipe(body)
+    .then(recipes => {
+      if (undefined === recipes)
+        res.status(404).send({ message: "Hubo un problema al cargar la receta", err:err });
+      res.status(200).send(recipes);
+    })
+    .catch(err => {
+      res.status(404).send({ err: err });
+    });
+}
+
 module.exports = {
   getRecipes,
   getRecipeById,
   getCategories,
   getSearch,
-  verifyImage
+  verifyImage,
+  createRecipe
 };

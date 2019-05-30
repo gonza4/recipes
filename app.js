@@ -1,12 +1,12 @@
 'use strict'
 
-var express = require('express');
-var bodyParser = require('body-parser');
-var cors = require('cors');
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
-var app = express();
+const app = express();
 
-var recipesRoutes = require('./routes/recipes');
+const recipesRoutes = require('./routes/recipes');
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended:false }));

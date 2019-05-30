@@ -68,7 +68,6 @@ function paginate(data, from) {
 
   let to = from + 20;
   let paginateData = data.slice(from, to);
-
   return paginateData;
 }
 

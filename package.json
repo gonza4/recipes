@@ -22,7 +22,9 @@
     "cors": "^2.8.5",
     "express": "^4.16.4",
     "jwt-simple": "^0.5.6",
+    "multer": "^1.4.1",
     "neo4j-driver": "*",
+    "path": "^0.12.7",
     "request": "^2.88.0",
     "url-exists-deep": "^1.1.1"
   },

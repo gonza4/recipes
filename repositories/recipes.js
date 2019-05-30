@@ -1,8 +1,11 @@
 "use strict";
 
-var session = require("../datasource/index");
-var recipeController = require("../util/recipes");
-var urlExists = require("url-exists-deep");
+const session = require("../datasource/index");
+const recipeController = require("../util/recipes");
+const urlExists = require("url-exists-deep");
+const multer = require("multer");
+const path = require("path");
+const createNodes = require("../util/fillDdbb")
 
 async function getRecipes(params) {
   let relation = params.relation;
@@ -12,11 +15,11 @@ async function getRecipes(params) {
   let order = params.order;
   let from = params.from;
 
-  await session
+  const finalResult = await session
     .run(
       `MATCH (re:Recipe)-[r:${relation}]->(dl:${category} {name:'${value}' })
 			 RETURN DISTINCT re 
-			 LIMIT 300`
+			 LIMIT 200`
     )
     .then(async result => {
       session.close();
@@ -24,33 +27,22 @@ async function getRecipes(params) {
       let totalPages = Math.floor(result.records.length / 20);
       totalPages = totalPages < 1 ? 1 : totalPages;
 
-      result.records.map(async value => {
-        let recipeId = value._fields[0].identity.low;
+      for (let index in result.records) {
+        let recipeId = result.records[index]._fields[0].identity.low;
 
-        await buildRecipeArray(recipeId)
-          .then(value => {
-            total.push({ ...value, totalPages: totalPages });
-          })
-          .catch(err => {
-            throw new Error(err);
-          });
-      });
-      await recipeController
-        .orderResults(total, orderType, order, from)
-        .then(value => {
-          return value;
-        })
-        .catch(err => {
-          throw new Error(err);
-        });
+        let temp = await buildRecipeArray(recipeId);
+        total.push({ ...temp[0], totalPages: totalPages });
+      }
+      return await recipeController.orderResults(total, orderType, order, from);
     })
     .catch(e => {
       throw new Error(e);
     });
+  return finalResult;
 }
 
 async function buildRecipeArray(recipeId) {
-  await session
+  const finalResult = await session
     .run(
       `MATCH (re:Recipe)-[r]-(o)
 			 WHERE id(re) = ${recipeId}
@@ -102,10 +94,11 @@ async function buildRecipeArray(recipeId) {
     .catch(err => {
       throw new Error(err);
     });
+  return finalResult;
 }
 
 async function getCategories() {
-  await session
+  const finalResult = await session
     .run(
       `MATCH ()-[r:DIET_LABELS]->(o:DietLabels)
 			 RETURN DISTINCT type(r), o.name`
@@ -126,7 +119,7 @@ async function getCategories() {
           values: values
         }
       });
-      await session
+      const firstResult = await session
         .run(
           `MATCH ()-[r:HEALTH_LABELS]->(o:HealthLabels)
 					RETURN DISTINCT type(r), o.name`
@@ -154,23 +147,27 @@ async function getCategories() {
         .catch(err => {
           throw new Error(err);
         });
+      return firstResult;
     })
     .catch(err => {
       throw new Error(err);
     });
+  return finalResult;
 }
 
 async function getSearch(params, from) {
   let text = params.text;
   text = replace(text);
-
+  text = validateAccent(text);
   let finalText = buildSearchText(text);
-  await session
+
+  const finalResult = await session
     .run(
-      `CALL db.index.fulltext.queryNodes("labelAndName", "${finalText}~2") 
-			 YIELD node, score 
-       RETURN node, score
-       LIMIT 10`
+      `CALL db.index.fulltext.queryNodes("indexLabelAndIng", "${finalText}~1") 
+       YIELD node, score 
+       RETURN node 
+       ORDER BY score
+       LIMIT 200`
     )
     .then(async result => {
       session.close();
@@ -178,38 +175,26 @@ async function getSearch(params, from) {
       let totalPages = Math.floor(result.records.length / 20);
       totalPages = totalPages < 1 ? 1 : totalPages;
 
-      result.records.map(async recipe => {
-        let recipeId = recipe._fields[0].identity.low;
-        await buildRecipeArray(recipeId)
-          .then(value => {
-            total.push({ ...value, totalPages: totalPages });
-          })
-          .catch(err => {
-            throw new Error(err);
-          });
-      });
-
-      await recipeController
-        .orderResults(total, null, null, from)
-        .then(result => {
-          return result;
-        })
-        .catch(err => {
-          throw new Error(err);
-        });
+      for (let index in result.records) {
+        let recipeId = result.records[index]._fields[0].identity.low;
+        let temp = await buildRecipeArray(recipeId);
+        total.push({ ...temp[0], totalPages: totalPages });
+      }
+      return await recipeController.orderResults(total, null, null, from);
     })
     .catch(err => {
       throw new Error(err);
     });
+  return finalResult;
 }
 
 async function verifyImage() {
   await session
     .run(
       `MATCH (re:Recipe)
-    RETURN DISTINCT re 
-    order by id(re) DESC
-    LIMIT 4500`
+       WHERE id(re) > 138198
+       RETURN DISTINCT re 
+       LIMIT 1000`
     )
     .then(result => {
       session.close();
@@ -217,7 +202,7 @@ async function verifyImage() {
       result.records.map(async value => {
         let recipeId = value._fields[0].identity.low;
         let recipe = value._fields[0].properties;
-
+        console.log(recipeId);
         urlExists(recipe.image)
           .then(async response => {
             if (response) {
@@ -235,12 +220,12 @@ async function verifyImage() {
           })
           .catch(async err => {
             console.log("entra 3");
-            await session.run(
-              `MATCH (re:Recipe)
-                WHERE id(re) = ${recipeId}
-                SET re.image = 'http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg'
-                RETURN re.image`
-            );
+            // await session.run(
+            //   `MATCH (re:Recipe)
+            //     WHERE id(re) = ${recipeId}
+            //     SET re.image = 'http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg'
+            //     RETURN re.image`
+            // );
             console.log(err);
             throw new Error(err);
           });
@@ -254,21 +239,21 @@ async function verifyImage() {
 
 function replace(text) {
   return text
-    .replace(" de ", "")
-    .replace(" con ", "")
-    .replace(" la ", "")
-    .replace(" las ", "")
-    .replace(" en ", "")
-    .replace(" un ", "")
-    .replace(" una ", "")
-    .replace(" unos ", "")
-    .replace(" unas ", "")
-    .replace(" al ", "")
-    .replace(" el ", "")
-    .replace(" lo ", "")
-    .replace(" los ", "")
-    .replace(" a ", "")
-    .replace(" del ", "");
+    .replace(" de ", " ")
+    .replace(" con ", " ")
+    .replace(" la ", " ")
+    .replace(" las ", " ")
+    .replace(" en ", " ")
+    .replace(" un ", " ")
+    .replace(" una ", " ")
+    .replace(" unos ", " ")
+    .replace(" unas ", " ")
+    .replace(" al ", " ")
+    .replace(" el ", " ")
+    .replace(" lo ", " ")
+    .replace(" los ", " ")
+    .replace(" a ", " ")
+    .replace(" del ", " ");
 }
 
 function buildSearchText(text) {
@@ -276,10 +261,153 @@ function buildSearchText(text) {
   return arrayText
     .map(element => {
       if ("" !== element) {
-        return (finalText += " " + element + "*");
+        return " " + element + "*";
       }
     })
+    .join("")
     .trim();
+}
+
+async function createRecipe(data) {
+  // let image = uploadImage();
+  let label = data.label;
+  let source = "recipesclub";
+  let yields = data.yield;
+  let calories = data.calories;
+  let url = undefined !== data.url ? data.url : "";
+  let procedure = undefined !== data.procedure ? data.procedure : "";
+
+  const finalResult = await session
+    .run(
+      `CREATE (r:Recipe {
+        label: $label,
+        source: $source,
+        yield: $yields,
+        calories: $calories,
+        url: $url,
+        procedure: $procedure,
+        date: datetime()
+      }) RETURN r`,
+      {
+        label,
+        source,
+        yields,
+        calories,
+        url,
+        procedure
+      }
+    )
+    .then(result => {
+      session.close();
+      let singleRecord = result.records[0];
+      let recipeId = singleRecord._fields[0].identity;
+
+      if(data.dietLabels)
+      await createNodes.createNodes(
+        recipeId,
+        data.dietLabels,
+        "dl",
+        "DietLabels",
+        "r:DIET_LABELS"
+      );
+      if(data.healthLabels)
+      await createNodes.createNodes(
+        recipeId,
+        data.healthLabels,
+        "hl",
+        "HealthLabels",
+        "r:HEALTH_LABELS"
+      );
+      if(data.ingredientLines)
+      await createNodes.createNodes(
+        recipeId,
+        data.ingredientLines,
+        "il",
+        "IngredientLines",
+        "r:INGREDIENT_LINES"
+      );
+      if(data.totalNutrients)
+      await createNodes.createAuxiliarNodes(
+        recipeId,
+        data.totalNutrients,
+        "tn",
+        "TotalNutrients",
+        "r:TOTAL_NUTRIENTS"
+      );
+
+      return 'La receta se cargo con exito';
+    })
+    .catch(err => {
+      console.log(err);
+      return err;
+    });
+  return finalResult;
+}
+
+async function createIndex() {
+  const finalResult = await session
+    .run(
+      `MATCH (r:Recipe)
+       WHERE id(r) > 173403
+       RETURN r
+       LIMIT 15000`
+    )
+    .then(result => {
+      let recipeId;
+      let name;
+      result.records.map(async value => {
+        recipeId = value._fields[0].identity.low;
+        name = value._fields[0].properties.label;
+        name = validateAccent(name);
+        console.log(name);
+        console.log(recipeId);
+        await session.run(`MATCH (r:Recipe)
+        WHERE id(r) = ${recipeId}
+        SET r.indexLabel = '${name}'
+        RETURN r.label, r.indexLabel`);
+      });
+
+      return "Ok";
+    })
+    .catch(err => {
+      console.log(err);
+      throw new Error(err);
+    });
+  return finalResult;
+}
+
+function validateAccent(name) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace("'", "");
+}
+
+function uploadImage() {
+  const storage = multer.diskStorage({
+    destination: "./uploads/",
+    filename:
+      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+  });
+
+  const upload = multer({
+    storage: storage,
+    limits: { fileSize: 1000000 },
+    fileFilter: file => {
+      checkFileType(file);
+    }
+  }).single("recipesClub");
+
+  console.log(upload);
+}
+
+function checkFileType(file) {
+  const filetypes = /jpeg|jpg|png|gif/;
+  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = filetypes.test(file.mimetype);
+
+  if (mimetype && extname) return true;
+  else return "Formatos habilitados: jpeg|jpg|png|gif";
 }
 
 module.exports = {
@@ -287,5 +415,7 @@ module.exports = {
   buildRecipeArray,
   getCategories,
   getSearch,
-  verifyImage
+  verifyImage,
+  createRecipe,
+  createIndex
 };

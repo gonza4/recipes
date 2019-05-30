@@ -1,8 +1,8 @@
 "use strict";
 
-var request = require("request");
+const request = require("request");
 
-async function getRecipes(params) {
+async function getRecipes(params, callback) {
   if (undefined === params.q) {
     throw new Error("Falta el parametro q");
   }
@@ -11,7 +11,7 @@ async function getRecipes(params) {
     app_id: "f5cd31de",
     app_key: "5af0d717e2f9c1cf26cb93b4c2452375",
     q: params.q,
-    to: 100
+    to: 200
   };
 
   request.get(
@@ -21,14 +21,14 @@ async function getRecipes(params) {
     },
     (error, response) => {
       if (error) {
-        throw new Error(error);
+        callback(error);
       }
       let body = response.body;
 
       if ("[" === body) {
-        throw new Error("Parametros incorrectos");
+        callback("Parametros incorrectos");
       } else {
-        return body;
+        callback(null, body);
       }
     }
   );
@@ -67,6 +67,6 @@ async function getRecipeById(params) {
 }
 
 module.exports = {
-	getRecipes,
-	getRecipeById
+  getRecipes,
+  getRecipeById
 };

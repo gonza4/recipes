@@ -1,25 +1,33 @@
 "use strict";
 
-var edamam = require("../services/edamam");
-var session = require("../datasource/index");
+const edamam = require("../services/edamam");
+const session = require("../datasource/index");
 
 async function fillDdbb(req, res) {
-  var params = req.query;
+  const params = req.query;
 
-  edamam
-    .getRecipes(params)
-    .then(res => {
-      body = JSON.parse(res);
-      let recipes = body.hits;
+  await edamam
+    .getRecipes(params, (err, rec) => {
+      if (err) res.status(409).send({ error: err });
+      else {
+        try {
+          let body = JSON.parse(rec);
+          let recipes = body.hits;
 
-      if (undefined === recipes) {
-        res.status(404).send({ message: "No se encontraron recetas" });
-      } else {
-        recipes.map(async recipe => {
-          await fillData(recipe.recipe);
-        });
+          if (undefined === recipes) {
+            res.status(404).send({ message: "No se encontraron recetas" });
+          } else {
+            recipes.map(async recipe => {
+              await fillData(recipe.recipe);
+            });
+            res.status(200).send("OK");
+          }
+        } catch (error) {
+          throw new Error(error);
+        }
       }
     })
+    .then(() => {})
     .catch(err => {
       res.status(409).send({ error: err });
     });
@@ -40,7 +48,6 @@ async function createRecipe(data) {
   let calories = data.calories;
   let totalWeight = data.totalWeight;
   let recipeId;
-
   await session
     .run(
       `MERGE (recipe:Recipe 
@@ -72,7 +79,7 @@ async function createRecipe(data) {
     )
     .then(result => {
       session.close();
-      var singleRecord = result.records[0];
+      let singleRecord = result.records[0];
       recipeId = singleRecord._fields[0].identity;
     })
     .catch(err => {
@@ -112,16 +119,16 @@ async function createRecipe(data) {
 }
 
 async function createNodes(recipeId, data, nodeFirst, nodeSecond, relation) {
-  for (let key in data) {
-    let name = data[key].replace("'", "");
-    console.log(data[key]);
+  data.map(async result => {
+    let name = result.replace("'", "");
+    console.log(name);
     await session
       .run(
         `MATCH (recipe:Recipe)
-				WHERE id(recipe)= ${recipeId}
-				MERGE (${nodeFirst}:${nodeSecond} { name: '${name}' })
-				CREATE UNIQUE (recipe)-[${relation}]->(${nodeFirst})
-				RETURN type(r)`
+          WHERE id(recipe)= ${recipeId}
+          MERGE (${nodeFirst}:${nodeSecond} { name: '${name}' })
+          CREATE UNIQUE (recipe)-[${relation}]->(${nodeFirst})
+          RETURN type(r)`
       )
       .then(() => {
         session.close();
@@ -129,7 +136,7 @@ async function createNodes(recipeId, data, nodeFirst, nodeSecond, relation) {
       .catch(err => {
         console.log(err);
       });
-  }
+  });
 }
 
 async function createAuxiliarNodes(
@@ -161,5 +168,7 @@ async function createAuxiliarNodes(
 }
 
 module.exports = {
-  fillDdbb
+  fillDdbb,
+  createNodes,
+  createAuxiliarNodes
 };
