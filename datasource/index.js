@@ -1,6 +1,10 @@
-var neo4j = require('neo4j-driver').v1;
+const neo4j = require("neo4j-driver").v1;
+require("dotenv").config();
 
-var driver = neo4j.driver('bolt://localhost:7687', neo4j.auth.basic('neo4j', '123456'));
-var session = driver.session();
+const driver = neo4j.driver(
+  process.env.HOST_NAME,
+  neo4j.auth.basic(process.env.USER, process.env.PASS)
+);
+const session = driver.session();
 
 module.exports = session;

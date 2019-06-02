@@ -3,9 +3,9 @@
 const session = require("../datasource/index");
 const recipeController = require("../util/recipes");
 const urlExists = require("url-exists-deep");
-const multer = require("multer");
 const path = require("path");
-const createNodes = require("../util/fillDdbb")
+const createNodes = require("../util/fillDdbb");
+const s3 = require("../util/s3");
 
 async function getRecipes(params) {
   let relation = params.relation;
@@ -36,7 +36,7 @@ async function getRecipes(params) {
       return await recipeController.orderResults(total, orderType, order, from);
     })
     .catch(e => {
-      throw new Error(e);
+      throw e;
     });
   return finalResult;
 }
@@ -92,7 +92,7 @@ async function buildRecipeArray(recipeId) {
       return total;
     })
     .catch(err => {
-      throw new Error(err);
+      throw err;
     });
   return finalResult;
 }
@@ -145,12 +145,12 @@ async function getCategories() {
           return totalDiet;
         })
         .catch(err => {
-          throw new Error(err);
+          throw err;
         });
       return firstResult;
     })
     .catch(err => {
-      throw new Error(err);
+      throw err;
     });
   return finalResult;
 }
@@ -163,11 +163,11 @@ async function getSearch(params, from) {
 
   const finalResult = await session
     .run(
-      `CALL db.index.fulltext.queryNodes("indexLabelAndIng", "${finalText}~1") 
+      `CALL db.index.fulltext.queryNodes("indexLabelAndIng", '"${finalText}~"') 
        YIELD node, score 
        RETURN node 
-       ORDER BY score
-       LIMIT 200`
+       ORDER BY score DESC, node.date
+       LIMIT 10`
     )
     .then(async result => {
       session.close();
@@ -183,7 +183,7 @@ async function getSearch(params, from) {
       return await recipeController.orderResults(total, null, null, from);
     })
     .catch(err => {
-      throw new Error(err);
+      throw err;
     });
   return finalResult;
 }
@@ -227,7 +227,7 @@ async function verifyImage() {
             //     RETURN re.image`
             // );
             console.log(err);
-            throw new Error(err);
+            throw err;
           });
       });
     })
@@ -267,81 +267,86 @@ function buildSearchText(text) {
     .join("")
     .trim();
 }
+async function createRecipe(req) {
+  try {
+    let image = uploadImage(req.file);
+    let data = req.body;
+    let label = data.label;
+    let source = "recipesclub";
+    let yields = data.yield;
+    let calories = data.calories;
+    let url = undefined !== data.url ? data.url : "";
+    let procedure = undefined !== data.procedure ? data.procedure : "";
 
-async function createRecipe(data) {
-  // let image = uploadImage();
-  let label = data.label;
-  let source = "recipesclub";
-  let yields = data.yield;
-  let calories = data.calories;
-  let url = undefined !== data.url ? data.url : "";
-  let procedure = undefined !== data.procedure ? data.procedure : "";
-
-  const finalResult = await session
-    .run(
-      `CREATE (r:Recipe {
+    const finalResult = await session
+      .run(
+        `CREATE (r:Recipe {
         label: $label,
         source: $source,
         yield: $yields,
         calories: $calories,
+        image: $image,
         url: $url,
         procedure: $procedure,
         date: datetime()
       }) RETURN r`,
-      {
-        label,
-        source,
-        yields,
-        calories,
-        url,
-        procedure
-      }
-    )
-    .then(result => {
-      session.close();
-      let singleRecord = result.records[0];
-      let recipeId = singleRecord._fields[0].identity;
+        {
+          label,
+          source,
+          yields,
+          calories,
+          url,
+          procedure,
+          image
+        }
+      )
+      .then(async result => {
+        session.close();
+        let singleRecord = result.records[0];
+        let recipeId = singleRecord._fields[0].identity;
 
-      if(data.dietLabels)
-      await createNodes.createNodes(
-        recipeId,
-        data.dietLabels,
-        "dl",
-        "DietLabels",
-        "r:DIET_LABELS"
-      );
-      if(data.healthLabels)
-      await createNodes.createNodes(
-        recipeId,
-        data.healthLabels,
-        "hl",
-        "HealthLabels",
-        "r:HEALTH_LABELS"
-      );
-      if(data.ingredientLines)
-      await createNodes.createNodes(
-        recipeId,
-        data.ingredientLines,
-        "il",
-        "IngredientLines",
-        "r:INGREDIENT_LINES"
-      );
-      if(data.totalNutrients)
-      await createNodes.createAuxiliarNodes(
-        recipeId,
-        data.totalNutrients,
-        "tn",
-        "TotalNutrients",
-        "r:TOTAL_NUTRIENTS"
-      );
+        if (data.dietLabels)
+          await createNodes.createNodes(
+            recipeId,
+            data.dietLabels,
+            "dl",
+            "DietLabels",
+            "r:DIET_LABELS"
+          );
+        if (data.healthLabels)
+          await createNodes.createNodes(
+            recipeId,
+            data.healthLabels,
+            "hl",
+            "HealthLabels",
+            "r:HEALTH_LABELS"
+          );
+        if (data.ingredientLines)
+          await createNodes.createNodes(
+            recipeId,
+            data.ingredientLines,
+            "il",
+            "IngredientLines",
+            "r:INGREDIENT_LINES"
+          );
+        if (data.totalNutrients)
+          await createNodes.createAuxiliarNodes(
+            recipeId,
+            data.totalNutrients,
+            "tn",
+            "TotalNutrients",
+            "r:TOTAL_NUTRIENTS"
+          );
 
-      return 'La receta se cargo con exito';
-    })
-    .catch(err => {
-      console.log(err);
-      return err;
-    });
-  return finalResult;
+        return "La receta se cargo con exito";
+      })
+      .catch(err => {
+        throw err;
+      });
+    return finalResult;
+  } catch (error) {
+    throw error;
+  }
 }
 
 async function createIndex() {
@@ -371,7 +376,7 @@ async function createIndex() {
     })
     .catch(err => {
       console.log(err);
-      throw new Error(err);
+      throw err;
     });
   return finalResult;
 }
@@ -383,31 +388,39 @@ function validateAccent(name) {
     .replace("'", "");
 }
 
-function uploadImage() {
-  const storage = multer.diskStorage({
-    destination: "./uploads/",
-    filename:
-      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
-  });
-
-  const upload = multer({
-    storage: storage,
-    limits: { fileSize: 1000000 },
-    fileFilter: file => {
-      checkFileType(file);
+function uploadImage(file) {
+  try {
+    if (file) {
+      if (checkFileType(file)) {
+        let filename =
+          "RecipesClub" +
+          "-" +
+          Date.now() +
+          path.extname(file.originalname).toLowerCase();
+        s3.upload(file.path, filename);
+        return process.env.AWS_S3_ROUTE + filename;
+      }
     }
-  }).single("recipesClub");
-
-  console.log(upload);
+    throw "No se cargo ninguna foto";
+  } catch (error) {
+    throw error;
+  }
 }
 
 function checkFileType(file) {
   const filetypes = /jpeg|jpg|png|gif/;
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = filetypes.test(file.mimetype);
+  const size = file.size < 1000000;
 
-  if (mimetype && extname) return true;
-  else return "Formatos habilitados: jpeg|jpg|png|gif";
+  if (!size) {
+    throw "El archivo debe pesar hasta 1 MB";
+  }
+  if (mimetype && extname) {
+    return true;
+  } else {
+    throw "Error: Los formatos permitidos son: jpeg|jpg|png|gif";
+  }
 }
 
 module.exports = {

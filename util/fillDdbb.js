@@ -121,7 +121,7 @@ async function createRecipe(data) {
 async function createNodes(recipeId, data, nodeFirst, nodeSecond, relation) {
   data.map(async result => {
     let name = result.replace("'", "");
-    console.log(name);
+    // console.log(name);
     await session
       .run(
         `MATCH (recipe:Recipe)
@@ -147,11 +147,12 @@ async function createAuxiliarNodes(
   relation
 ) {
   for (let key in data) {
+    let name = undefined !== data[key].label ? data[key].label : key;
     await session
       .run(
         `MATCH (recipe:Recipe)
 				WHERE id(recipe)= ${recipeId}
-				MERGE (${nodeFirst}:${nodeSecond} { name: '${key}',
+				MERGE (${nodeFirst}:${nodeSecond} { name: '${name}',
 													quantity: '${data[key].quantity}',
 													unit: '${data[key].unit}'
 												  })

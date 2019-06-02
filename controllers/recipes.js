@@ -63,12 +63,13 @@ async function verifyImage(req, res) {
 }
 
 async function createRecipe(req, res) {
-  let body = req.body;
   await recipeRepo
-    .createRecipe(body)
+    .createRecipe(req)
     .then(recipes => {
       if (undefined === recipes)
-        res.status(404).send({ message: "Hubo un problema al cargar la receta", err:err });
+        res
+          .status(404)
+          .send({ message: "Hubo un problema al cargar la receta", err: err });
       res.status(200).send(recipes);
     })
     .catch(err => {
