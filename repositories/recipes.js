@@ -48,7 +48,7 @@ async function buildRecipeArray(recipeId) {
 			 WHERE id(re) = ${recipeId}
 			 RETURN o, re`
     )
-    .then(result => {
+    .then(async result => {
       session.close();
       let dietLabels = [];
       let healthLabels = [];
@@ -160,14 +160,14 @@ async function getSearch(params, from) {
   text = replace(text);
   text = validateAccent(text);
   let finalText = buildSearchText(text);
-
+  
   const finalResult = await session
     .run(
-      `CALL db.index.fulltext.queryNodes("indexLabelAndIng", '"${finalText}~"') 
+      `CALL db.index.fulltext.queryNodes("indexLabelAndIng", '${finalText}~') 
        YIELD node, score 
        RETURN node 
        ORDER BY score DESC, node.date
-       LIMIT 10`
+       LIMIT 200`
     )
     .then(async result => {
       session.close();
@@ -183,6 +183,7 @@ async function getSearch(params, from) {
       return await recipeController.orderResults(total, null, null, from);
     })
     .catch(err => {
+      console.log(err);
       throw err;
     });
   return finalResult;
@@ -192,7 +193,7 @@ async function verifyImage() {
   await session
     .run(
       `MATCH (re:Recipe)
-       WHERE id(re) > 138198
+       where id(re) > 118401
        RETURN DISTINCT re 
        LIMIT 1000`
     )
@@ -203,6 +204,24 @@ async function verifyImage() {
         let recipeId = value._fields[0].identity.low;
         let recipe = value._fields[0].properties;
         console.log(recipeId);
+        // await session
+        //   .run(
+        //     `MATCH (re:Recipe)-[r]-(o)
+        //     WHERE id(re) = ${recipeId}
+        //     RETURN o, re`
+        //   )
+        //   .then(async result => {
+        //     session.close();
+        //     if (result.records.length === 0) {
+        //       await session.run(`MATCH (re:Recipe)
+        //       WHERE id(re) = ${recipeId}
+        //       DETACH DELETE re`);
+        //     }
+        //   })
+        //   .catch(e=>{
+        //     console.log(e)
+        //   });
+
         urlExists(recipe.image)
           .then(async response => {
             if (response) {
@@ -212,26 +231,29 @@ async function verifyImage() {
               await session.run(
                 `MATCH (re:Recipe)
                   WHERE id(re) = ${recipeId}
-                  SET re.image = 'http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg'
+                  SET re.image = '${
+                    process.env.AWS_S3_ROUTE
+                  }imagen_no_disponible.jpeg'
                   RETURN re.image`
               );
-              // http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg
             }
           })
           .catch(async err => {
             console.log("entra 3");
-            // await session.run(
-            //   `MATCH (re:Recipe)
-            //     WHERE id(re) = ${recipeId}
-            //     SET re.image = 'http://recipes-club.s3-website.us-east-2.amazonaws.com/img/imagen_no_disponible.jpeg'
-            //     RETURN re.image`
-            // );
+            await session.run(
+              `MATCH (re:Recipe)
+                WHERE id(re) = ${recipeId}
+                SET re.image = '${
+                  process.env.AWS_S3_ROUTE
+                }imagen_no_disponible.jpeg'
+                RETURN re.image`
+            );
             console.log(err);
-            throw err;
+            // throw err;
           });
       });
     })
-    .catch(function(e) {
+    .catch(e => {
       //   callback(e);
       console.log(e);
     });

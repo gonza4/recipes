@@ -3,7 +3,7 @@ require("dotenv").config();
 
 const driver = neo4j.driver(
   process.env.HOST_NAME,
-  neo4j.auth.basic(process.env.USER, process.env.PASS)
+  neo4j.auth.basic(process.env.USERNAME, process.env.PASS)
 );
 const session = driver.session();
 
