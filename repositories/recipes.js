@@ -294,6 +294,7 @@ async function createRecipe(req) {
     let image = uploadImage(req.file);
     let data = req.body;
     let label = data.label;
+    let indexLabel = validateAccent(label);
     let source = "recipesclub";
     let yields = data.yield;
     let calories = data.calories;
@@ -304,6 +305,7 @@ async function createRecipe(req) {
       .run(
         `CREATE (r:Recipe {
         label: $label,
+        indexLabel: $indexLabel,
         source: $source,
         yield: $yields,
         calories: $calories,
@@ -319,7 +321,8 @@ async function createRecipe(req) {
           calories,
           url,
           procedure,
-          image
+          image,
+          indexLabel
         }
       )
       .then(async result => {

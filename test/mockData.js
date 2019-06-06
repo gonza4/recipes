@@ -253,7 +253,94 @@ const recipeWithourNutInfo = {
     ]
   }
 };
-
+const recipeWrongDietCatFormat = {
+  res: {
+    statusCode: 404
+  },
+  body: {
+    yield: 60,
+    calories: 27092.875,
+    label: "Milanesa",
+    url: "http://milanesa.recetascomidas.com/",
+    dietLabels: "Baja en carbohidratos",
+    healthLabels: ["Libre de mariscos", "Libre de Lacteos"],
+    ingredientLines: [
+      "Sal",
+      "Aceite",
+      "2 huevos",
+      "8 filetes de terneras finos"
+    ],
+    totalNutrients: [
+      {
+        label: "VITK1",
+        quantity: "190.4406",
+        unit: "µg"
+      },
+      {
+        label: "ENERC_KCAL",
+        quantity: "27092.875",
+        unit: "kcal"
+      }
+    ]
+  }
+};
+const recipeWrongHealthCatFormat = {
+  res: {
+    statusCode: 404
+  },
+  body: {
+    yield: 60,
+    calories: 27092.875,
+    label: "Milanesa",
+    url: "http://milanesa.recetascomidas.com/",
+    dietLabels: "Baja en carbohidratos",
+    healthLabels: "Libre de mariscos",
+    ingredientLines: [
+      "Sal",
+      "Aceite",
+      "2 huevos",
+      "8 filetes de terneras finos"
+    ],
+    totalNutrients: [
+      {
+        label: "VITK1",
+        quantity: "190.4406",
+        unit: "µg"
+      },
+      {
+        label: "ENERC_KCAL",
+        quantity: "27092.875",
+        unit: "kcal"
+      }
+    ]
+  }
+};
+const recipeWrongIngFormat = {
+  res: {
+    statusCode: 404
+  },
+  body: {
+    yield: 60,
+    calories: 27092.875,
+    label: "Milanesa",
+    url: "http://milanesa.recetascomidas.com/",
+    dietLabels: "Baja en carbohidratos",
+    healthLabels: ["Libre de mariscos", "Libre de Lacteos"],
+    ingredientLines: "Sal",
+    totalNutrients: [
+      {
+        label: "VITK1",
+        quantity: "190.4406",
+        unit: "µg"
+      },
+      {
+        label: "ENERC_KCAL",
+        quantity: "27092.875",
+        unit: "kcal"
+      }
+    ]
+  }
+};
 module.exports = {
   recipeOK,
   recipeWithWrongCategory,
@@ -263,5 +350,8 @@ module.exports = {
   recipeWithoutIngredients,
   recipeWithoutTitle,
   recipeWithoutUrlOrProcedure,
-  recipeWithoutYields
+  recipeWithoutYields,
+  recipeWrongDietCatFormat,
+  recipeWrongHealthCatFormat,
+  recipeWrongIngFormat
 };
