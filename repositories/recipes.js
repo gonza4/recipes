@@ -166,7 +166,7 @@ async function getSearch(params, from) {
       `CALL db.index.fulltext.queryNodes("indexLabelAndIng", '${finalText}~') 
        YIELD node, score 
        RETURN node 
-       ORDER BY score DESC, node.date
+       ORDER BY score DESC, node.date DESC
        LIMIT 200`
     )
     .then(async result => {
@@ -183,7 +183,6 @@ async function getSearch(params, from) {
       return await recipeController.orderResults(total, null, null, from);
     })
     .catch(err => {
-      console.log(err);
       throw err;
     });
   return finalResult;
@@ -195,7 +194,7 @@ async function verifyImage() {
       `MATCH (re:Recipe)
        where id(re) > 118401
        RETURN DISTINCT re 
-       LIMIT 1000`
+       LIMIT 20`
     )
     .then(result => {
       session.close();
@@ -291,10 +290,12 @@ function buildSearchText(text) {
 }
 async function createRecipe(req) {
   try {
-    let image = uploadImage(req.file);
+    
+    // let image = uploadImage(req.file);
+    let image = ''
     let data = req.body;
     let label = data.label;
-    let indexLabel = validateAccent(label);
+    let indexLabel = validateAccent(label) + ' ';
     let source = "recipesclub";
     let yields = data.yield;
     let calories = data.calories;
@@ -366,10 +367,12 @@ async function createRecipe(req) {
         return "La receta se cargo con exito";
       })
       .catch(err => {
+        console.log(err)
         throw err;
       });
     return finalResult;
   } catch (error) {
+    console.log(error)
     throw error;
   }
 }
@@ -380,7 +383,7 @@ async function createIndex() {
       `MATCH (r:Recipe)
        WHERE id(r) > 173403
        RETURN r
-       LIMIT 15000`
+       LIMIT 20`
     )
     .then(result => {
       let recipeId;
