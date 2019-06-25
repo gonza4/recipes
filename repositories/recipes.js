@@ -292,7 +292,7 @@ async function createRecipe(req) {
   try {
     let image = req.file
       ? uploadImage(req.file)
-      : process.env.AWS_S3_ROUTE + imagen_no_disponible.jpeg;
+      : process.env.AWS_S3_ROUTE + 'imagen_no_disponible.jpeg';
     let data = req.body;
     let label = data.label.replace(/"/g, "");
     let indexLabel = validateAccent(label) + " ";

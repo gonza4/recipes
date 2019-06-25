@@ -119,7 +119,7 @@ async function createRecipe(data) {
 }
 
 async function createNodes(recipeId, data, nodeFirst, nodeSecond, relation) {
-  data = JSON.parse(data)
+  data = JSON.parse(data);
   data.map(async result => {
     let name = result.replace("'", "");
     // console.log(name);
@@ -147,6 +147,7 @@ async function createAuxiliarNodes(
   nodeSecond,
   relation
 ) {
+  data = JSON.parse(data);
   for (let key in data) {
     let name = undefined !== data[key].label ? data[key].label : key;
     await session
@@ -162,7 +163,7 @@ async function createAuxiliarNodes(
       )
       .then(() => {
         session.close();
-        return
+        return;
       })
       .catch(err => {
         console.log(err);
