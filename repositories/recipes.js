@@ -160,7 +160,7 @@ async function getSearch(params, from) {
   text = replace(text);
   text = validateAccent(text);
   let finalText = buildSearchText(text);
-  
+
   const finalResult = await session
     .run(
       `CALL db.index.fulltext.queryNodes("indexLabelAndIng", '${finalText}~') 
@@ -194,7 +194,7 @@ async function verifyImage() {
       `MATCH (re:Recipe)
        where id(re) > 118401
        RETURN DISTINCT re 
-       LIMIT 20`
+       LIMIT 2`
     )
     .then(result => {
       session.close();
@@ -290,12 +290,12 @@ function buildSearchText(text) {
 }
 async function createRecipe(req) {
   try {
-    
-    // let image = uploadImage(req.file);
-    let image = ''
+    let image = req.file
+      ? uploadImage(req.file)
+      : process.env.AWS_S3_ROUTE + imagen_no_disponible.jpeg;
     let data = req.body;
     let label = data.label;
-    let indexLabel = validateAccent(label) + ' ';
+    let indexLabel = validateAccent(label) + " ";
     let source = "recipesclub";
     let yields = data.yield;
     let calories = data.calories;
@@ -367,12 +367,10 @@ async function createRecipe(req) {
         return "La receta se cargo con exito";
       })
       .catch(err => {
-        console.log(err)
         throw err;
       });
     return finalResult;
   } catch (error) {
-    console.log(error)
     throw error;
   }
 }
@@ -383,7 +381,7 @@ async function createIndex() {
       `MATCH (r:Recipe)
        WHERE id(r) > 173403
        RETURN r
-       LIMIT 20`
+       LIMIT 2`
     )
     .then(result => {
       let recipeId;
