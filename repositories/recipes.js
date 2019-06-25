@@ -294,13 +294,13 @@ async function createRecipe(req) {
       ? uploadImage(req.file)
       : process.env.AWS_S3_ROUTE + imagen_no_disponible.jpeg;
     let data = req.body;
-    let label = data.label;
+    let label = data.label.replace(/"/g, "");
     let indexLabel = validateAccent(label) + " ";
     let source = "recipesclub";
-    let yields = data.yield;
-    let calories = data.calories;
-    let url = undefined !== data.url ? data.url : "";
-    let procedure = undefined !== data.procedure ? data.procedure : "";
+    let yields = data.yield.replace(/"/g, "");
+    let calories = data.calories.replace(/"/g, "");
+    let url = undefined !== data.url ? data.url.replace(/"/g, "") : "";
+    let procedure = undefined !== data.procedure ? data.procedure.replace(/"/g, "") : "";
 
     const finalResult = await session
       .run(
